@@ -4,12 +4,13 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this project.
 #
-from twisted.application import service, internet
-from twisted.internet import ssl
-
+from twisted.application import internet, service
 from server.async_proxy_factories import AsyncProxyFactory
 from server.async_proxy_protocols import AsyncProxyChannel
-from server.async_proxy_services import AsyncProxyServiceTCP, AsyncProxyServiceSSL
+
+# To serve statistics
+from twisted.web import server
+from server.statistics import AsyncProxyStatistics
 
 """
 The basic steps to create a twisted application are:
@@ -24,18 +25,26 @@ Generating a 1024 bit RSA private key
 
 To run:
 twistd --nodaemon --python  server/async_proxy_server.py
+twistd --debug --python  server/async_proxy_server.py
 
 """
 
 application = service.Application('AsyncProxy')
+service_collection = service.IServiceCollection(application)
 
 custom_factory = AsyncProxyFactory()
 custom_factory.protocol = AsyncProxyChannel
 
-async_proxy_service_tcp = AsyncProxyServiceTCP(8080, custom_factory)
-#async_proxy_service_ssl = AsyncProxyServiceSSL(443, custom_factory,
-#                                               ssl.DefaultOpenSSLContextFactory('ssl-ssl-keys/server.key',
-#                                                                                'ssl-ssl-keys/server.pem'))
+async_proxy_service_tcp = internet.TCPServer(8080, custom_factory)
 
-async_proxy_service_tcp.setServiceParent(application)
-#async_proxy_service_ssl.setServiceParent(application)
+root = AsyncProxyStatistics()
+
+# TODO Give some style to statistics...
+#root.putChild('styles', static.File("./public/css"))
+
+site = server.Site(root)
+web_server = internet.TCPServer(8081, site)
+
+async_proxy_service_tcp.setServiceParent(service_collection)
+web_server.setServiceParent(service_collection)
+

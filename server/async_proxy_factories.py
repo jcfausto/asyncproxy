@@ -5,16 +5,16 @@
 # LICENSE file in the root directory of this project.
 #
 from twisted.web.http import HTTPFactory
-from twisted.web.proxy import ProxyClientFactory, ProxyClient
+from twisted.internet.protocol import Protocol, ClientFactory
+from twisted.python import log
 
 
 class AsyncProxyFactory(HTTPFactory):
-    """
-    Factory responsible for creating the custom proxy protocols
-    """
+    """Factory responsible for creating the custom proxy protocols"""
+    bytes_transferred = 0
 
 
-class AsyncProxyClient(ProxyClient):
+class AsyncProxyClient(Protocol):
     connectedClient = None
 
     def connectionMade(self):
@@ -28,21 +28,23 @@ class AsyncProxyClient(ProxyClient):
     def connectionLost(self, reason):
         if self.connectedClient is not None:
             self.connectedClient.transport.loseConnection()
-        #log.msg("Origin: {remote} - Bytes transferred: {bytes}".format(remote=self.factory.host,
-        #                                                               bytes=self.factory.bytes_transferred))
+        log.msg("{bytes} bytes transferred from {remote} to origin (client)".format(remote=self.factory.host,
+                                                           bytes=self.factory.bytes_transferred))
 
     def dataReceived(self, data):
         if self.connectedClient is not None:
             # Forward all bytes from the remote server back to the
             # original connected client
             self.connectedClient.transport.write(data)
+            log.msg('%d bytes transferred to origin (client)' % (len(data)))
             # count bytes transferred from remote to the client
             self.factory.bytes_transferred += len(data)
         else:
             pass
-            #log.msg("UNEXPECTED DATA RECEIVED:", data)
+            log.msg("UNEXPECTED DATA RECEIVED:", data)
 
-class AsyncProxyClientFactory(ProxyClientFactory):
+
+class AsyncProxyClientFactory(ClientFactory):
     protocol = AsyncProxyClient
     bytes_transferred = 0
 

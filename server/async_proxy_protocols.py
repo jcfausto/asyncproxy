@@ -5,8 +5,9 @@
 # LICENSE file in the root directory of this project.
 #
 from twisted.web.proxy import Proxy, ProxyRequest
-from urllib.parse import urlparse
 from server.async_proxy_factories import AsyncProxyClientFactory
+from twisted.python import log
+import urlparse
 
 
 class AsyncProxyRequestHandler(ProxyRequest):
@@ -34,9 +35,11 @@ class AsyncProxyRequestHandler(ProxyRequest):
         if len(parts) == 2:
             try:
                 port = int(parts[1])
+                host = parts[0]
             except ValueError:
                 pass
-        return parts[0], port
+
+        return host, port
 
     def processConnectRequest(self):
         parsed = urlparse.urlparse(self.uri)
@@ -55,7 +58,7 @@ class AsyncProxyRequestHandler(ProxyRequest):
 
         client_factory = AsyncProxyClientFactory(host, port, self)
 
-        self.reactor.connectTCP(host, port, client_factory)
+        self.reactor.connectTCP(str(host), port, client_factory)
 
     def serve_statistics(self):
         self.setResponseCode(200)
@@ -72,6 +75,9 @@ class AsyncProxyChannel(Proxy):
     connectedRemote = None
 
     def requestDone(self, request):
+        if ((request.method != 'CONNECT') and ('content-length' in request.headers)):
+            log.msg('Content-Length: %d' % int(request.headers['content-length']))
+
         if request.method == 'CONNECT' and self.connectedRemote is not None:
             self.connectedRemote.connectedClient = self
         else:
@@ -84,8 +90,10 @@ class AsyncProxyChannel(Proxy):
 
     def dataReceived(self, data):
         if self.connectedRemote is None:
+            log.msg('%d bytes received from origin (client)' % (len(data)))
             Proxy.dataReceived(self, data)
         else:
             # Once proxy is connected, forward all bytes received
             # from the original client to the remote server.
             self.connectedRemote.transport.write(data)
+            log.msg('%d bytes transferred to destination (remote)' % (len(data)))
