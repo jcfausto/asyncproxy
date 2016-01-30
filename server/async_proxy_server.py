@@ -4,6 +4,7 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this project.
 #
+import os
 from twisted.application import internet, service
 from server.async_proxy_factories import AsyncProxyFactory
 from server.async_proxy_protocols import AsyncProxyChannel
@@ -27,7 +28,11 @@ To run:
 twistd --nodaemon --python  server/async_proxy_server.py
 twistd --debug --python  server/async_proxy_server.py
 
+To change the port where the proxy will listen set up a env var
+export ASYNC_PROXY_SERVER_PORT=5000
 """
+
+async_proxy_server_port = int(os.environ.get('ASYNC_PROXY_SERVER_PORT', 8000))
 
 application = service.Application('AsyncProxy')
 service_collection = service.IServiceCollection(application)
@@ -35,7 +40,7 @@ service_collection = service.IServiceCollection(application)
 custom_factory = AsyncProxyFactory()
 custom_factory.protocol = AsyncProxyChannel
 
-async_proxy_service_tcp = internet.TCPServer(8080, custom_factory)
+async_proxy_service_tcp = internet.TCPServer(async_proxy_server_port, custom_factory)
 
 root = AsyncProxyStatistics()
 
