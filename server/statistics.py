@@ -4,18 +4,42 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this project.
 #
-from twisted.web import resource
 
 
-class AsyncProxyStatistics(resource.Resource):
-    isLeaf = False
+def constant(c):
+    """
+    Since python doesn't have a constant type like other languages,
+    this property type tries to simulate that by not allowing a property annoted to be written.
+    """
 
-    def getChild(self, name, request):
-        if name == '':
-            return self
-        return resource.Resource.geChild(self, name, request)
+    def cset(self, value):
+        raise TypeError
 
-    def render_GET(self, request):
-        return "<html>Statistics</html>"
+    def cget(self):
+        return c()
+
+    return property(cget, cset)
 
 
+class _BytesTransferedOutputFormat(object):
+    """
+    This class provides all allowed output formats and convertion factors for the bytes_transferred info.
+    """
+
+    @constant
+    def BYTES():
+        return "bytes"
+
+    @constant
+    def KBYTES():
+        return "kilobytes"
+
+    @constant
+    def MBYTES():
+        return "megabytes"
+
+    def kbytes_factor(self):
+        return float(1 << 10)
+
+    def mbytes_factor(self):
+        return float(1 << 20)

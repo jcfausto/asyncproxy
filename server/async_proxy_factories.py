@@ -4,14 +4,55 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this project.
 #
+
+
 from twisted.web.http import HTTPFactory
 from twisted.internet.protocol import Protocol, ClientFactory
 from twisted.python import log
+from server.statistics import _BytesTransferedOutputFormat
+
+# imports to properly format the output for statistics
+import time
+from datetime import timedelta
 
 
 class AsyncProxyFactory(HTTPFactory):
     """Factory responsible for creating the custom proxy protocols"""
-    bytes_transferred = 0
+    _bytes_transferred = 0
+    _startup_time = time.time()
+
+    def update_usage(self, bytes_transferred):
+        """
+        Updates the accounting for proxy usage (bytes transferred)
+        :param bytes_transferred: Some amount of bytes expressed as an int value
+        :return: None
+        """
+        self._bytes_transferred += bytes_transferred
+
+    def get_bytes_transferred(self, output_format):
+        """
+        :param output_format: indicates the desired output format: B, KB or MB.
+        :return: The rate of bytes transferred through the proxy in the indicated format.
+        """
+
+        formatter = _BytesTransferedOutputFormat()
+
+        if output_format == formatter.BYTES:
+            return self._bytes_transferred
+        elif output_format == formatter.KBYTES:
+            return self._bytes_transferred / formatter.kbytes_factor()
+        elif output_format == formatter.MBYTES:
+            return self._bytes_transferred / formatter.mbytes_factor()
+        else:
+            return self._bytes_transferred
+
+    def get_uptime(self):
+        """
+        This function returns the time elapsed since the proxy server startup
+        :return: Formatted uptime in N days HH:MM:SS
+        """
+        delta = timedelta(seconds=time.time() - self._startup_time)
+        return ('%d days' % delta.days) + ', ' + time.strftime('%H:%M:%S', time.gmtime(delta.seconds))
 
 
 class AsyncProxyClient(Protocol):

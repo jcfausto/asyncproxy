@@ -4,11 +4,15 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this project.
 #
-from twisted.web.proxy import Proxy, ProxyRequest
-from server.async_proxy_factories import AsyncProxyClientFactory
-from twisted.python import log
+
+
 import urlparse
-import os
+
+from twisted.web.proxy import Proxy, ProxyRequest
+from twisted.python import log
+
+from server.async_proxy_factories import AsyncProxyClientFactory
+from server.statistics import _BytesTransferedOutputFormat
 
 
 class AsyncProxyRequestHandler(ProxyRequest):
@@ -80,30 +84,39 @@ class AsyncProxyRequestHandler(ProxyRequest):
                                 <h1>AsyncProxy <small>statistics</small></h1>
                             </div>
                             <div class="row">
-                                <div class="col-sm-6 col-md-4">
+                                <div class="col-sm-6 col-md-6">
                                     <div class="panel panel-primary">
                                         <div class="panel-heading">Uptime</div>
-                                        <div class="panel-body"><center><h2>10:00:00</center></h2></div>
+                                        <div class="panel-body"><center><h2>{uptime}</center></h2></div>
                                     </div>
                                 </div>
-                                <div class="col-sm-6 col-md-4">
+                                <div class="col-sm-6 col-md-6">
                                     <div class="panel panel-success">
                                         <div class="panel-heading">Bytes transferred</div>
                                         <div class="panel-body"><center><h2>{bytes_transferred}</h2></center></div>
                                     </div>
                                 </div>
-                                <div class="col-sm-6 col-md-4">
+                            </div>
+                            <div class="row">
+                                <div class="col-sm-6 col-md-6">
                                     <div class="panel panel-info">
                                         <div class="panel-heading">KBytes transferred</div>
                                         <div class="panel-body"><center><h2>{kbytes_transferred}</center></h2></div>
                                     </div>
                                 </div>
+                                <div class="col-sm-6 col-md-6">
+                                    <div class="panel panel-info">
+                                        <div class="panel-heading">MBytes transferred</div>
+                                        <div class="panel-body"><center><h2>{mbytes_transferred}</center></h2></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </body>
-                </html>""".format(
-                bytes_transferred=self.channel.factory.bytes_transferred,
-                kbytes_transferred=format((self.channel.factory.bytes_transferred/1024.00), '.2f'))
+                </html>""".format(uptime=self.channel.factory.get_uptime(),
+                                  bytes_transferred=self.channel.factory.get_bytes_transferred(_BytesTransferedOutputFormat().BYTES),
+                                  kbytes_transferred=self.channel.factory.get_bytes_transferred(_BytesTransferedOutputFormat().KBYTES),
+                                  mbytes_transferred=self.channel.factory.get_bytes_transferred(_BytesTransferedOutputFormat().MBYTES))
         self.write(body)
         self.finish()
 
@@ -116,7 +129,7 @@ class AsyncProxyChannel(Proxy):
     def requestDone(self, request):
         if ((request.method != 'CONNECT') and ('content-length' in request.headers)):
             log.msg('Content-Length: %d' % int(request.headers['content-length']))
-            self.factory.bytes_transferred += request.sentLength
+            self.factory.update_usage(request.sentLength)
 
         if request.method == 'CONNECT' and self.connectedRemote is not None:
             self.connectedRemote.connectedClient = self
