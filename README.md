@@ -68,3 +68,9 @@ $ twistd --nodaemon --python=server/async_proxy_server.py
 The easyest way to test is to configure your browser to use this proxy. Start navigating after the configuration and everything should be fine.
 
 If you want to see something happenning, run locally or start the docker container without the "-d" option. 
+
+## Statistics
+
+The proxy was created with an endpoint called **/stats** where you will be able to see the proxy's usage information as shown below:
+
+![Alt text](async-proxy-stats-endpoint.png "Proxy Statistics")
