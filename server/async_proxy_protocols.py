@@ -21,8 +21,21 @@ class AsyncProxyRequestHandler(ProxyRequest):
     connectedProtocol = None
 
     def process(self):
-        log.msg(self.requestHeaders._rawHeaders['host'][0])
-        log.msg(str(self.host.host) + ':' + str(self.host.port))
+        header_has_range_parameter = self.requestHeaders.hasHeader('range')
+        request_has_range_query_parameter = 'bytes' in self.args
+
+        if (header_has_range_parameter and request_has_range_query_parameter):
+            header_range_value = self.requestHeaders._rawHeaders['range'][0]
+            request_range_value = self.args['bytes'][0]
+            if (header_range_value != request_range_value):
+                self.fail('Requested Range not satisfiable',
+                          """<!DOCTYPE html><head><title>AsyncProxy - 416: Requested Range not satisfiable</title>
+                          </head><body>The values of header range and query range parameter differ: Header: {header},
+                          Query: {query}</body></html>""".format(header=str(header_range_value),
+                                                                 query=str(request_range_value)), 416)
+                return
+
+
         if (self.method == 'GET') and (self.uri == '/stats'):
             self.serve_statistics()
             #self.redirect("".join(str(self.host.host) + ':' + str(os.environ.get('ASYNC_PROXY_STATS_PORT', 8081)) + '/stats'))
@@ -32,8 +45,8 @@ class AsyncProxyRequestHandler(ProxyRequest):
         else:
             ProxyRequest.process(self)
 
-    def fail(self, message, body):
-        self.setResponseCode(501, message)
+    def fail(self, message, body, status=501):
+        self.setResponseCode(status, message)
         self.responseHeaders.addRawHeader("Content-Type", "text/html")
         self.write(body)
         self.finish()
