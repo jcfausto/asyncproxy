@@ -26,7 +26,7 @@ For more info, please check requirements.txt inside the server folder.
 
 1. Have [Docker](https://www.docker.com/) 1.9.1+ and [Docker Compose](https://docs.docker.com/compose/) 1.5.2+ properly installed and configured.
 
-2. To rum locally, have [virtualenv](https://virtualenv.readthedocs.org/en/latest/) (preferably [virtualenvwrapper](https://virtualenvwrapper.readthedocs.org/en/latest/)) installed.
+2. To run locally, have [virtualenv](https://virtualenv.readthedocs.org/en/latest/) (preferably [virtualenvwrapper](https://virtualenvwrapper.readthedocs.org/en/latest/)) installed.
 
 3. Follow the steps bellow:
 
