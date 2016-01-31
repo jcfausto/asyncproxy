@@ -16,7 +16,7 @@ An asynchronous HTTP proxy built with Python and Twisted complying to the requir
  
 # Dependencie's versions
 
-This software is compatible with **Python 2.7** due to the use of [Twisted](https://twistedmatrix.com/trac/), a library that still is doing the port to Python 3+. Most of the library is already ported but still isn't to stable as with Python 2.7.
+This software is compatible with **Python 2.7** due to the use of [Twisted](https://twistedmatrix.com/trac/), a library that still is doing the port to Python 3+. Most of the library is already ported but still isn't too stable as with Python 2.7.
 
 Twisted 15.5.0 was used.
 
