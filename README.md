@@ -38,7 +38,7 @@ This environment variable tells the proxy in which port to listen.
 
 The configured port also will be exposed in the docker container.
 
-The proxy will start by default at port 8000 if this environment variable wasn't present and with value.
+The proxy will start by default at port 8000. To run on Docker, this env variable must exists and be properly set.
 
 Example:
 
