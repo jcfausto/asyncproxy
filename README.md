@@ -51,13 +51,6 @@ $ export ASYNC_PROXY_SERVER_PORT=5000
 $ git clone https://github.com/jcfausto/asyncproxy.git
 $ cd asyncproxy
 ```
-## Testing
-
-There are some tests written. Run it before deploying to Docker.
-
-```bash
-$ nosetests --with-spec ./specs
-````
 
 ## Running on Docker
 ```bash
@@ -70,6 +63,14 @@ $ mkvirtualenv asyncproxy
 $ pip install -r requirements.txt
 $ twistd --nodaemon --python=server/async_proxy_server.py
 ```
+
+## Testing
+
+There are some tests written.
+
+```bash
+$ nosetests --with-spec ./specs
+````
 
 # Using
 
