@@ -51,6 +51,14 @@ $ export ASYNC_PROXY_SERVER_PORT=5000
 $ git clone https://github.com/jcfausto/asyncproxy.git
 $ cd asyncproxy
 ```
+## Testing
+
+There are some tests written. Run it before deploying to Docker.
+
+```bash
+$ nosetests --with-spec ./specs
+````
+
 ## Running on Docker
 ```bash
 $ docker-compose up -d #to detach from container after its initialization
