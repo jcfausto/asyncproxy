@@ -12,36 +12,100 @@ from twisted.web.proxy import Proxy, ProxyRequest
 from twisted.python import log
 
 from server.async_proxy_factories import AsyncProxyClientFactory
-from server.statistics import _BytesTransferedOutputFormat
+from server.statistics import BytesTransferedOutputFormat
 
 
 class AsyncProxyRequestHandler(ProxyRequest):
-    """HTTP ProxyRequest handler (factory) that supports CONNECT"""
+    """HTTP ProxyRequest will handle the requests submitted from client to proxy"""
 
     connectedProtocol = None
 
+    def header_has_range_parameter(self):
+        """
+        Checks if the header contains the 'range' parameter
+        :return: boolean
+        """
+        return self.requestHeaders.hasHeader('range')
+
+    def request_has_range_query_parameter(self):
+        """
+        Checks if the query uri contains the 'range' query parameter
+        :return: boolean
+        """
+        return 'bytes' in self.args
+
+    def get_header_range_request_value(self):
+        """
+        Return the byte range specified in the range parameter in the request's header.
+        :return: str
+        """
+        if self.header_has_range_parameter():
+            return str(self.requestHeaders._rawHeaders['range'][0])
+        else:
+            return '0-0'
+
+    def get_query_range_request_value(self):
+        """
+        Return the byte range specified in the query range parameter in the request's URI.
+        :return: str
+        """
+        if self.request_has_range_query_parameter():
+            return str(self.args['bytes'][0])
+        else:
+            return '0-0'
+
+    def range_request_satisfiable(self):
+        """
+        Check if the header and query range request value are equal when both are present.
+        Else, return True by default.
+        :return: boolean
+        """
+        hvalue = self.get_header_range_request_value()
+        rvalue = self.get_query_range_request_value()
+        req_has_parameter = self.request_has_range_query_parameter()
+        hea_has_parameter = self.header_has_range_parameter()
+
+        if req_has_parameter and hea_has_parameter:
+            return hvalue == rvalue
+        else:
+            return True
+
+    def statistics_requested(self):
+        """
+        Check if the request was on the /stats endpoint
+        :return: boolean
+        """
+        return (self.method == 'GET') and (self.uri == '/stats')
+
     def process(self):
-        header_has_range_parameter = self.requestHeaders.hasHeader('range')
-        request_has_range_query_parameter = 'bytes' in self.args
 
-        if (header_has_range_parameter and request_has_range_query_parameter):
-            header_range_value = self.requestHeaders._rawHeaders['range'][0]
-            request_range_value = self.args['bytes'][0]
-            if (header_range_value != request_range_value):
-                self.fail('Requested Range not satisfiable',
-                          """<!DOCTYPE html><head><title>AsyncProxy - 416: Requested Range not satisfiable</title>
-                          </head><body>The values of header range and query range parameter differ: Header: {header},
-                          Query: {query}</body></html>""".format(header=str(header_range_value),
-                                                                 query=str(request_range_value)), 416)
-                return
+        """
+        Checks if a range request was demanded and if its satisfies the requirements.
+        If don't, and 416 - Requested Range not satisfiable will the returned in response.
+        """
+        if not self.range_request_satisfiable():
+            error_message = """
+                <!DOCTYPE html>
+                    <head>
+                        <title>AsyncProxy - 416: Requested Range not satisfiable</title>
+                    </head>
+                    <body>
+                        The values of header range and query range parameter differ: Header: {header}, Query: {query}
+                    </body>
+                </html>""".format(header=self.get_header_range_request_value(),
+                                  query=self.get_query_range_request_value())
 
+            self.fail('Requested Range not satisfiable', error_message, 416)
 
-        if (self.method == 'GET') and (self.uri == '/stats'):
+            # Don't remove this return even if your IDE doesn't understand it.
+            return
+
+        # Checks to see if the request is for proxy statistics
+        if self.statistics_requested():
             self.serve_statistics()
-            #self.redirect("".join(str(self.host.host) + ':' + str(os.environ.get('ASYNC_PROXY_STATS_PORT', 8081)) + '/stats'))
-            self.finish()
         elif self.method == 'CONNECT':
-            self.processConnectRequest()
+            # Handling HTTPS requests that comes with a CONNECT request
+            self.process_connect_request()
         else:
             ProxyRequest.process(self)
 
@@ -51,7 +115,10 @@ class AsyncProxyRequestHandler(ProxyRequest):
         self.write(body)
         self.finish()
 
-    def splitHostPort(self, hostport, default_port):
+    def split_host_port(self, hostport, default_port):
+
+        """Splits the host and port from the request"""
+
         port = default_port
         parts = hostport.split(':', 1)
         if len(parts) == 2:
@@ -63,20 +130,18 @@ class AsyncProxyRequestHandler(ProxyRequest):
 
         return host, port
 
-    def processConnectRequest(self):
+    def process_connect_request(self):
+
+        """Handle HTTPS CONNECT requests"""
+
         parsed = urlparse.urlparse(self.uri)
         default_port = self.ports.get(parsed.scheme)
 
-        host, port = self.splitHostPort(parsed.netloc or parsed.path,
-                                        default_port)
-
-        if port == '8080' and host == 'localhost':
-            return
+        host, port = self.split_host_port(parsed.netloc or parsed.path, default_port)
 
         if port is None:
             self.fail("Bad CONNECT Request",
                       "Unable to parse port from URI: %s" % repr(self.uri))
-            return
 
         client_factory = AsyncProxyClientFactory(host, port, self)
 
@@ -127,20 +192,24 @@ class AsyncProxyRequestHandler(ProxyRequest):
                         </div>
                     </body>
                 </html>""".format(uptime=self.channel.factory.get_uptime(),
-                                  bytes_transferred=self.channel.factory.get_bytes_transferred(_BytesTransferedOutputFormat().BYTES),
-                                  kbytes_transferred=self.channel.factory.get_bytes_transferred(_BytesTransferedOutputFormat().KBYTES),
-                                  mbytes_transferred=self.channel.factory.get_bytes_transferred(_BytesTransferedOutputFormat().MBYTES))
+                                  bytes_transferred=self.channel.factory.get_bytes_transferred(BytesTransferedOutputFormat().BYTES),
+                                  kbytes_transferred=self.channel.factory.get_bytes_transferred(BytesTransferedOutputFormat().KBYTES),
+                                  mbytes_transferred=self.channel.factory.get_bytes_transferred(BytesTransferedOutputFormat().MBYTES))
         self.write(body)
         self.finish()
 
 
 class AsyncProxyChannel(Proxy):
+
     """Proxy that resides between the cliente and the remote."""
+
     requestFactory = AsyncProxyRequestHandler
     connectedRemote = None
 
     def requestDone(self, request):
-        if ((request.method != 'CONNECT') and ('content-length' in request.headers)):
+
+        # Only for non HTTPS connections.
+        if (request.method != 'CONNECT') and ('content-length' in request.headers):
             log.msg('Content-Length: %d' % int(request.headers['content-length']))
             self.factory.update_usage(request.sentLength)
 

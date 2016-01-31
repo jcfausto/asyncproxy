@@ -21,7 +21,7 @@ def constant(c):
     return property(cget, cset)
 
 
-class _BytesTransferedOutputFormat(object):
+class BytesTransferedOutputFormat(object):
     """
     This class provides all allowed output formats and convertion factors for the bytes_transferred info.
     """
@@ -43,3 +43,37 @@ class _BytesTransferedOutputFormat(object):
 
     def mbytes_factor(self):
         return float(1 << 20)
+
+"""
+ Global to count bytes transferred
+ Since Twisted is single threaded I won't worry about
+ Synchronization here.
+"""
+bytes_transferred = 0
+
+
+def update_usage(bytes_transferred):
+    """
+        Updates the accounting for proxy usage (bytes transferred)
+        :param bytes_transferred: Some amount of bytes expressed as an int value
+        :return: None
+        """
+    bytes_transferred += bytes_transferred
+
+
+def get_bytes_transferred(output_format):
+    """
+        :param output_format: indicates the desired output format: B, KB or MB.
+        :return: The rate of bytes transferred through the proxy in the indicated format.
+        """
+
+    formatter = BytesTransferedOutputFormat()
+
+    if output_format == formatter.BYTES:
+        return bytes_transferred
+    elif output_format == formatter.KBYTES:
+        return bytes_transferred / formatter.kbytes_factor()
+    elif output_format == formatter.MBYTES:
+        return bytes_transferred / formatter.mbytes_factor()
+    else:
+        return bytes_transferred
