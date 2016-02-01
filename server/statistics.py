@@ -64,7 +64,7 @@ def update_usage(bytes_transferred):
 def get_bytes_transferred(output_format):
     """
         :param output_format: indicates the desired output format: B, KB or MB.
-        :return: The rate of bytes transferred through the proxy in the indicated format.
+        :return: The amount of bytes transferred through the proxy in the indicated format.
         """
 
     formatter = BytesTransferedOutputFormat()
