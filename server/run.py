@@ -7,7 +7,7 @@
 
 """
 # Uncomment this if you want to run in pyCharm for example.
-"""
+
 
 from twisted.python import log
 
@@ -27,6 +27,8 @@ if __name__ == '__main__':
     twisted.internet.reactor.listenTCP(8000, factory)
 
     twisted.internet.reactor.run()
+    
+"""    
 
 
 
